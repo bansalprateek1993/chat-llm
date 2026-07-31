@@ -1,4 +1,4 @@
-from agentic_chatbot_tool_backend import chatbot, get_all_threads
+from agentic_chatbot_db_backend import chatbot, get_all_threads
 from langchain_core.messages import HumanMessage, AIMessage
 import streamlit as st
 import uuid
@@ -17,6 +17,7 @@ def reset_chat():
     st.session_state["thread_id"] = generate_thread_id()
     st.session_state["message_history"] = []
     add_thread(st.session_state["thread_id"])
+
 
 def load_conversation(thread_id):
     state = chatbot.get_state(
@@ -103,64 +104,19 @@ if user_input:
               "run_name": "chat_trace"
     }
 
-    with st.chat_message("assistant"):
-        status = st.empty()
-        response_placeholder = st.empty()
-
-        final_response = ""
-
-        for event in chatbot.stream(
-            {"messages": [HumanMessage(content=user_input)]},
-            config=CONFIG,
-            stream_mode="updates",
-        ):
-
-            # event is a dict like:
-            # {'chat_node': {...}}
-            # {'tools': {...}}
-
-            if "chat_node" in event:
-                status.info("🤔 Thinking...")
-
-                messages = event["chat_node"].get("messages", [])
-                if messages:
-                    msg = messages[-1]
-
-                    # Final AI response
-                    if (
-                        isinstance(msg, AIMessage)
-                        and not msg.tool_calls
-                        and msg.content
-                    ):
-                        final_response = msg.content
-                        response_placeholder.markdown(final_response)
-
-            elif "tools" in event:
-                tool_messages = event["tools"].get("messages", [])
-
-                for tool_msg in tool_messages:
-                    tool_name = getattr(tool_msg, "name", "tool")
-                    status.info(f"🔧 Running tool: `{tool_name}`")
-
-        status.success("✅ Done")
-        ai_message = final_response
-
-    # from langchain_core.messages import AIMessage
-
-    # response = chatbot.invoke({'messages':[HumanMessage(content=user_input)]}, config=CONFIG)
-
-    # ai_message = next(
-    #     msg.content
-    #     for msg in reversed(response["messages"])
-    #     if isinstance(msg, AIMessage) and msg.content
-    # )
+    # For streaming assistant response
+    with st.chat_message('assistant'):
+        ai_message = st.write_stream(
+            message_chunk.content for message_chunk, metadata in chatbot.stream(
+                {'messages': [HumanMessage(content=user_input)]},
+                config = CONFIG,
+                stream_mode = 'messages'
+            )
+            if isinstance(message_chunk, AIMessage)
+        )
 
     # Storing the AI message to message history.
     st.session_state['message_history'].append({'role': 'assistant', 'content': ai_message})
-
-    # print(final_answer)
-    with st.chat_message('assistant'):
-        st.text(ai_message)
 
     # with st.chat_message('assistant'):
     #     st.text(ai_message)
