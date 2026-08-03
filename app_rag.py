@@ -1,10 +1,9 @@
-from chatbot_with_hitl import chatbot, get_all_threads, ingest_rag_document
+from agentic_chatbot_rag_backend import chatbot, get_all_threads, ingest_rag_document
 from langchain_core.messages import HumanMessage, AIMessage
 import streamlit as st
 import uuid
 import tempfile
 import os
-from langgraph.types import Command
 
 # Generate the unique thread id
 def generate_thread_id():
@@ -42,9 +41,6 @@ if 'thread_id' not in st.session_state:
 
 if 'chat_threads' not in st.session_state:
     st.session_state['chat_threads'] = get_all_threads()
-
-if "pending_interrupt" not in st.session_state:
-    st.session_state["pending_interrupt"] = None
 
 if "pdf_uploaded" not in st.session_state:
     st.session_state["pdf_uploaded"] = False
@@ -134,58 +130,6 @@ for message in st.session_state['message_history']:
     with st.chat_message(message['role']):
         st.text(message['content'])
 
-if st.session_state.get("pending_interrupt"):
-
-    hitl = st.session_state["pending_interrupt"]
-
-    st.warning(hitl["question"])
-
-    col1, col2 = st.columns(2)
-
-    if col1.button("Approve"):
-        result = chatbot.invoke(
-            Command(resume="yes"),
-            config={
-                "configurable": {
-                    "thread_id": hitl["thread_id"]
-                }
-            }
-        )
-
-        response = result["messages"][-1].content
-
-        st.session_state["message_history"].append(
-            {
-                "role": "assistant",
-                "content": response
-            }
-        )
-
-        st.session_state["pending_interrupt"] = None
-        st.rerun()
-
-    if col2.button("Reject"):
-        result = chatbot.invoke(
-            Command(resume="no"),
-            config={
-                "configurable": {
-                    "thread_id": hitl["thread_id"]
-                }
-            }
-        )
-
-        response = result["messages"][-1].content
-
-        st.session_state["message_history"].append(
-            {
-                "role": "assistant",
-                "content": response
-            }
-        )
-
-        st.session_state["pending_interrupt"] = None
-        st.rerun()
-
 user_input = st.chat_input('Type here')
 if user_input:
     # Add the message in message history
@@ -220,17 +164,6 @@ if user_input:
             # event is a dict like:
             # {'chat_node': {...}}
             # {'tools': {...}}
-                # HANDLE INTERRUPT
-            if "__interrupt__" in event:
-                interrupt_obj = event["__interrupt__"][0]
-
-                st.session_state["pending_interrupt"] = {
-                    "thread_id": st.session_state["thread_id"],
-                    "question": interrupt_obj.value
-                }
-
-                status.warning("⚠ Human approval required")
-                break
 
             if "chat_node" in event:
                 status.info("🤔 Thinking...")
