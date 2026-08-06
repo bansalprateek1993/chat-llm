@@ -1,0 +1,16 @@
+langgraph
+langchain_groq
+python-dotenv
+pydantic
+streamlit
+langgraph-checkpoint-sqlite
+langchain_tavily
+langchain-google-genai
+langchain_community
+langchain-huggingface
+sentence-transformers
+langchain-tavily
+tavily-python
+faiss-cpu
+pypdf
+langchain-text-splitters
